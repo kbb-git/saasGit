@@ -162,19 +162,34 @@ function CheckoutContent() {
         setLoading(true);
         setError(null);
 
-        if (typeof window.CheckoutWebComponents === 'undefined') {
-          // Load Checkout.com Web Components script
-          console.log('Loading Checkout.com script...');
-          try {
-            await loadCheckoutScript();
+        // Set a timeout for the entire checkout initialization process
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Checkout initialization timed out')), 20000);
+        });
+
+        // Try to load the script with a timeout
+        try {
+          if (typeof window.CheckoutWebComponents === 'undefined') {
+            console.log('Loading Checkout.com script...');
+            await Promise.race([
+              loadCheckoutScript(),
+              timeoutPromise
+            ]);
             console.log('Checkout.com script loaded successfully');
-          } catch (scriptError) {
-            console.error('Error loading Checkout.com script:', scriptError);
-            setError('Unable to load payment system. Please check your internet connection and try again.');
-            setLoading(false);
-            return;
           }
+        } catch (scriptError) {
+          console.error('Error loading Checkout.com script:', scriptError);
+          if (scriptError instanceof Error && scriptError.message.includes('timed out')) {
+            setError('Payment system is taking too long to respond. Please refresh and try again.');
+          } else {
+            setError('Unable to load payment system. Please check your internet connection and try again.');
+          }
+          setLoading(false);
+          return;
         }
+        
+        // Add a small delay to ensure the script is fully initialized
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         // Calculate amount in minor units (cents/pence)
         const amount = parseInt(selectedPlan.priceMonthly, 10) * 100;
@@ -398,21 +413,42 @@ function CheckoutContent() {
                       <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
                         <strong className="font-bold">Error: </strong>
                         <span className="block sm:inline">{error}</span>
-                        <p className="mt-2 text-sm">
-                          If this error persists, please try:
-                          <ul className="list-disc list-inside mt-1">
-                            <li>Refreshing the page</li>
-                            <li>Checking your internet connection</li>
-                            <li>Trying a different browser</li>
-                            <li>Contacting support if the issue continues</li>
-                          </ul>
-                        </p>
-                        <button 
-                          onClick={() => window.location.reload()} 
-                          className="mt-2 inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                        >
-                          Refresh Page
-                        </button>
+                        
+                        {error.includes('CORS') || error.includes('blocked') ? (
+                          <div className="mt-2 text-sm">
+                            <p>This appears to be a browser security error. Try these solutions:</p>
+                            <ul className="list-disc list-inside mt-1">
+                              <li>Try using a different browser (Chrome, Firefox, Safari)</li>
+                              <li>Check if any browser extensions are blocking scripts</li>
+                              <li>Ensure your internet connection allows secure connections</li>
+                            </ul>
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-sm">
+                            If this error persists, please try:
+                            <ul className="list-disc list-inside mt-1">
+                              <li>Refreshing the page</li>
+                              <li>Checking your internet connection</li>
+                              <li>Trying a different browser</li>
+                              <li>Contacting support if the issue continues</li>
+                            </ul>
+                          </p>
+                        )}
+                        
+                        <div className="mt-3 flex space-x-2">
+                          <button 
+                            onClick={() => window.location.reload()} 
+                            className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                          >
+                            Refresh Page
+                          </button>
+                          <button 
+                            onClick={() => setError(null)}
+                            className="inline-flex items-center px-3 py-1 border border-red-300 text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                          >
+                            Try Again
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -445,14 +481,14 @@ function loadCheckoutScript(): Promise<void> {
     }
     
     // Try to remove any existing failed script tags
-    const existingScripts = document.querySelectorAll('script[src*="checkout.com"]');
+    const existingScripts = document.querySelectorAll('script[src*="checkout"]');
     existingScripts.forEach(script => script.remove());
     
     // Create and add the script tag
     const script = document.createElement('script');
-    script.src = 'https://cdn.checkout.com/web-components/v2.0/flow/web-components-flow.js';
+    // Use our own proxy endpoint instead of direct CDN URL to avoid CORS issues
+    script.src = '/api/proxy/checkout-script';
     script.async = true;
-    script.crossOrigin = 'anonymous'; // Add CORS support
     
     let retries = 0;
     const maxRetries = 3;
