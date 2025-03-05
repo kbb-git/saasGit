@@ -18,7 +18,7 @@ export default function AboutPage() {
               <figure className="border-l border-indigo-600 pl-8">
                 <blockquote className="text-xl font-semibold leading-8 tracking-tight text-gray-900">
                   <p>
-                    "SaaSify has transformed how we approach our digital business. Their platform is intuitive, powerful, and constantly evolving to meet our needs."
+                    &ldquo;SaaSify has transformed how we approach our digital business. Their platform is intuitive, powerful, and constantly evolving to meet our needs.&rdquo;
                   </p>
                 </blockquote>
                 <figcaption className="mt-8 flex gap-x-4">
@@ -33,7 +33,7 @@ export default function AboutPage() {
               <div className="text-base leading-7 text-gray-700">
                 <p className="mb-6">
                   Founded in 2020, SaaSify was born from a simple idea: make it easy for anyone to sell digital products online. 
-                  Whether you're a solo creator or a growing business, our platform provides all the tools you need to succeed.
+                  Whether you&apos;re a solo creator or a growing business, our platform provides all the tools you need to succeed.
                 </p>
                 <p className="mb-6">
                   Our team of industry experts has built a platform that combines powerful features with simplicity. 
@@ -41,15 +41,15 @@ export default function AboutPage() {
                 </p>
                 <h3 className="mt-12 text-2xl font-bold tracking-tight text-gray-900">Our Values</h3>
                 <ul className="mt-6 list-disc pl-8 space-y-3">
-                  <li>Customer Success: Your success is our success. We're committed to helping you grow.</li>
+                  <li>Customer Success: Your success is our success. We&apos;re committed to helping you grow.</li>
                   <li>Innovation: We constantly evolve our platform to stay ahead of market trends.</li>
-                  <li>Simplicity: Powerful doesn't have to mean complicated. We focus on usability.</li>
-                  <li>Security: Your data and your customers' data are safe with us.</li>
+                  <li>Simplicity: Powerful doesn&apos;t have to mean complicated. We focus on usability.</li>
+                  <li>Security: Your data and your customers&apos; data are safe with us.</li>
                 </ul>
                 <h3 className="mt-12 text-2xl font-bold tracking-tight text-gray-900">Our Team</h3>
                 <p className="mt-6">
-                  We're a diverse team of engineers, designers, and business experts united by a common goal: 
-                  to build the best platform for selling digital products. We're remote-first, with team members 
+                  We&apos;re a diverse team of engineers, designers, and business experts united by a common goal: 
+                  to build the best platform for selling digital products. We&apos;re remote-first, with team members 
                   across the globe bringing their unique perspectives to our work.
                 </p>
               </div>

@@ -29,7 +29,15 @@ export async function GET(
 
     return NextResponse.json(response.data);
   } catch (error) {
-    console.error("Session fetch error:", error);
+    const err = error as {
+      message: string;
+      response?: {
+        data: unknown;
+        status: number;
+      };
+    };
+    
+    console.error("Session fetch error:", err);
     return NextResponse.json(
       { error: "Failed to fetch session details" },
       { status: 500 }

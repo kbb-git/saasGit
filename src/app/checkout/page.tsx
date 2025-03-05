@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '../../components/Navbar';
@@ -122,7 +122,21 @@ declare global {
   }
 }
 
-export default function CheckoutPage() {
+// Loading component for Suspense
+function CheckoutLoading() {
+  return (
+    <div className="max-w-3xl mx-auto text-center py-12">
+      <div className="animate-pulse">
+        <div className="h-8 bg-indigo-100 rounded w-1/2 mx-auto mb-4"></div>
+        <div className="h-4 bg-indigo-50 rounded w-2/3 mx-auto mb-2"></div>
+        <div className="h-4 bg-indigo-50 rounded w-3/4 mx-auto"></div>
+      </div>
+    </div>
+  );
+}
+
+// Component with search params
+function CheckoutContent() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -250,113 +264,129 @@ export default function CheckoutPage() {
   // Handle email submission
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email) {
+    if (email && email.includes('@')) {
       setEmailSubmitted(true);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <Navbar />
-      <div className="flex-grow container mx-auto px-4 py-12">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-indigo-700 to-purple-700 bg-clip-text text-transparent drop-shadow-sm">Complete Your Purchase</h1>
-          
-          <div className="bg-white shadow-md rounded-lg overflow-hidden mb-8">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-800">Order Summary</h2>
-              <div className="mt-4 flex justify-between items-center">
-                <div>
-                  <h3 className="font-medium bg-indigo-100 text-indigo-800 px-3 py-1 rounded-lg inline-block">{selectedPlan.name} Plan</h3>
-                  <p className="text-gray-600 text-sm mt-2">{selectedPlan.description}</p>
-                </div>
-                <div className="text-xl font-bold bg-indigo-100 text-indigo-800 px-4 py-2 rounded-lg">${selectedPlan.priceMonthly}/month</div>
-              </div>
+    <div className="bg-white">
+      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6 bg-indigo-50 border-b border-indigo-100">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-1">Checkout</h2>
+              <p className="text-gray-600">Complete your purchase to get started</p>
             </div>
             
-            {!emailSubmitted ? (
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">Customer Information</h2>
-                <form onSubmit={handleEmailSubmit} className="space-y-4">
+            <div className="p-6">
+              <div className="mb-8 p-4 bg-gray-50 rounded-lg">
+                <div className="flex justify-between items-center">
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                    <h3 className="text-lg font-semibold text-gray-900">{selectedPlan.name} Plan</h3>
+                    <p className="text-sm text-gray-500">{selectedPlan.description}</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-gray-900">${selectedPlan.priceMonthly}</div>
+                    <div className="text-sm text-gray-500">per month</div>
+                  </div>
+                </div>
+              </div>
+              
+              {!emailSubmitted ? (
+                <form onSubmit={handleEmailSubmit} className="mb-8">
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                    Email Address
+                  </label>
+                  <div className="mt-1 flex rounded-md shadow-sm">
                     <input
                       type="email"
+                      name="email"
                       id="email"
+                      className="focus:ring-indigo-500 focus:border-indigo-500 flex-1 block w-full rounded-md sm:text-sm border-gray-300 px-3 py-2 border"
+                      placeholder="you@example.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-indigo-700 font-medium"
-                      placeholder="john@example.com"
                       required
                     />
                   </div>
-                  <button
-                    type="submit"
-                    className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors"
-                  >
-                    Continue to Payment
-                  </button>
+                  <div className="mt-4">
+                    <button
+                      type="submit"
+                      className="w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      Continue to Payment
+                    </button>
+                  </div>
                 </form>
-              </div>
-            ) : (
-              <div className="p-6">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">Payment Details</h2>
-                
-                {/* Display submitted email */}
-                <div className="mb-6 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
-                  <div className="text-sm text-gray-600">Your email:</div>
-                  <div className="text-indigo-700 font-medium break-all">{email}</div>
+              ) : (
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-medium text-gray-900">Payment Details</h3>
+                    <button
+                      onClick={() => setEmailSubmitted(false)}
+                      className="text-sm text-indigo-600 hover:text-indigo-500"
+                    >
+                      Change Email
+                    </button>
+                  </div>
+                  
+                  {/* This is where the Checkout.com Flow component will be mounted */}
+                  <div ref={flowContainerRef} className="min-h-[400px]">
+                    {loading && (
+                      <div className="flex justify-center items-center h-80">
+                        <div className="animate-spin rounded-full h-10 w-10 border-4 border-indigo-500 border-t-transparent"></div>
+                      </div>
+                    )}
+                    
+                    {error && !loading && (
+                      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                        <strong className="font-bold">Error: </strong>
+                        <span className="block sm:inline">{error}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                
-                {loading && (
-                  <div className="flex justify-center items-center py-8">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-                  </div>
-                )}
-                
-                {error && (
-                  <div className="bg-red-50 text-red-700 p-4 rounded-md mb-4">
-                    {error}
-                  </div>
-                )}
-                
-                {/* Checkout.com Flow container */}
-                <div 
-                  ref={flowContainerRef} 
-                  className="min-h-[300px] bg-gray-50 rounded-md p-4"
-                ></div>
+              )}
+              
+              <div className="mt-6 text-xs text-gray-500">
+                <p className="mb-2">
+                  By completing this purchase, you agree to our <Link href="/terms" className="text-indigo-600 hover:text-indigo-500">Terms of Service</Link> and <Link href="/privacy" className="text-indigo-600 hover:text-indigo-500">Privacy Policy</Link>.
+                </p>
+                <p>
+                  Your payment is securely processed by Checkout.com. We do not store your full payment details.
+                </p>
               </div>
-            )}
-          </div>
-          
-          <div className="text-center">
-            <Link 
-              href="/pricing" 
-              className="text-indigo-600 hover:text-indigo-800 font-medium"
-            >
-              Return to pricing
-            </Link>
+            </div>
           </div>
         </div>
       </div>
-      <Footer />
     </div>
   );
 }
 
-// Fix for loadCheckoutScript function to check for window.CheckoutWebComponents
+// Helper function to load Checkout.com script
 function loadCheckoutScript(): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (typeof window !== 'undefined' && 'CheckoutWebComponents' in window) {
-      resolve();
-      return;
-    }
-
     const script = document.createElement('script');
-    script.src = 'https://checkout-web-components.checkout.com/index.js';
+    script.src = 'https://cdn.checkout.com/web-components/v2.0/flow/web-components-flow.js';
     script.async = true;
     script.onload = () => resolve();
     script.onerror = () => reject(new Error('Failed to load Checkout.com script'));
     document.head.appendChild(script);
   });
+}
+
+export default function CheckoutPage() {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+      <div className="flex-grow">
+        <Suspense fallback={<CheckoutLoading />}>
+          <CheckoutContent />
+        </Suspense>
+      </div>
+      <Footer />
+    </div>
+  );
 } 

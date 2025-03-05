@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '../../../components/Navbar';
@@ -82,7 +82,21 @@ function JsonDisplay({ data, title }: { data: JsonData; title: string }) {
   );
 }
 
-export default function SuccessPage() {
+// Loading component for Suspense
+function SuccessLoading() {
+  return (
+    <div className="max-w-3xl mx-auto text-center py-12">
+      <div className="animate-pulse">
+        <div className="h-8 bg-green-100 rounded w-1/2 mx-auto mb-4"></div>
+        <div className="h-4 bg-green-50 rounded w-2/3 mx-auto mb-2"></div>
+        <div className="h-4 bg-green-50 rounded w-3/4 mx-auto"></div>
+      </div>
+    </div>
+  );
+}
+
+// Success content component with search params
+function SuccessContent() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -248,162 +262,200 @@ export default function SuccessPage() {
   const formatAmount = (amount: number, currency: string) => {
     const formatter = new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: currency || 'USD',
+      currency: currency.toUpperCase(),
+      minimumFractionDigits: 2,
     });
-    
     return formatter.format(amount / 100);
   };
   
-  return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
-      <Navbar />
-      <div className="flex-grow container mx-auto px-4 py-12 bg-slate-50">
-        <div className="max-w-3xl mx-auto">
-          {loading ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-            </div>
-          ) : error ? (
-            <div className="bg-red-50 text-red-700 p-6 rounded-lg shadow-md mb-8">
-              <h2 className="text-xl font-bold mb-2">Error</h2>
-              <p>{error}</p>
-              <div className="mt-6">
-                <Link 
-                  href="/" 
-                  className="inline-block bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
-                >
-                  Return to Home
-                </Link>
+  // Determine content to display based on loading/error state
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto text-center py-12">
+        <div className="animate-spin h-12 w-12 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+        <p className="text-gray-600">Loading payment details...</p>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white shadow-md rounded-lg overflow-hidden">
+          <div className="p-6 bg-yellow-50 border-b border-yellow-100">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-yellow-100 rounded-full p-3">
+                <svg className="h-8 w-8 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h1 className="text-2xl font-bold text-gray-800">Payment Verification Issue</h1>
+                <p className="text-gray-600">We're having trouble verifying your payment</p>
               </div>
             </div>
-          ) : (
-            <div className="bg-white shadow-md rounded-lg overflow-hidden">
-              <div className="p-6 bg-indigo-50 border-b border-indigo-100">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 bg-indigo-100 rounded-full p-3">
-                    <svg className="h-8 w-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                  </div>
-                  <div className="ml-4">
-                    <h1 className="text-2xl font-bold text-gray-800">Payment Successful!</h1>
-                    <p className="text-gray-600">Thank you for your purchase</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-6 border-b border-slate-200 bg-white">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">Order Details</h2>
-                
-                {sessionDetails && (
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">Order Reference:</span>
-                      <span className="font-medium text-slate-900">{sessionDetails.reference || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">Amount:</span>
-                      <span className="font-medium text-slate-900">
-                        {formatAmount(sessionDetails.amount, sessionDetails.currency)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">Status:</span>
-                      <span className="font-medium text-indigo-600">
-                        {paymentDetails?.status || sessionDetails.status || 'Completed'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">Date:</span>
-                      <span className="font-medium text-slate-900">
-                        {new Date().toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
-                      </span>
-                    </div>
-                    {storedPaymentData?.tier && (
-                      <div className="flex justify-between">
-                        <span className="text-slate-600">Plan:</span>
-                        <span className="font-medium text-slate-900">{storedPaymentData.tier.name} (${storedPaymentData.tier.priceMonthly}/month)</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              
-              {/* Payment Response JSON Display Section */}
-              <div className="p-6 border-b border-slate-200 bg-white">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">Payment Details</h2>
-                <p className="text-slate-600 mb-4">
-                  Technical details of your payment for reference. You can use these details if you need 
-                  to contact customer support.
-                </p>
-                
-                {combinedResponse && (
-                  <>
-                    <JsonDisplay data={combinedResponse} title="Complete Payment Response" />
-                    
-                    {sessionDetails && (
-                      <JsonDisplay data={sessionDetails as unknown as JsonData} title="Session Details" />
-                    )}
-                    
-                    {paymentDetails && (
-                      <JsonDisplay data={paymentDetails as unknown as JsonData} title="Payment Details" />
-                    )}
-                    
-                    {storedPaymentData && (
-                      <JsonDisplay 
-                        data={storedPaymentData as unknown as JsonData} 
-                        title="Client-Side Payment Data" 
-                      />
-                    )}
-                  </>
-                )}
-              </div>
-              
-              <div className="p-6 bg-white">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">What&apos;s Next?</h2>
-                <ul className="space-y-2 mb-6">
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-indigo-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    <span className="text-slate-700">Your account has been activated</span>
-                  </li>
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-indigo-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    <span className="text-slate-700">You&apos;ll receive a confirmation email shortly</span>
-                  </li>
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-indigo-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    <span className="text-slate-700">Your subscription will renew automatically each month</span>
-                  </li>
-                </ul>
-                
-                <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
-                  <Link 
-                    href="/dashboard" 
-                    className="inline-block bg-indigo-600 text-white px-6 py-3 rounded-md text-center hover:bg-indigo-700"
-                  >
-                    Go to Dashboard
-                  </Link>
-                  <Link 
-                    href="/" 
-                    className="inline-block bg-white text-indigo-600 border border-indigo-600 px-6 py-3 rounded-md text-center hover:bg-indigo-50"
-                  >
-                    Return to Home
-                  </Link>
-                </div>
-              </div>
+          </div>
+          
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Error Details</h2>
+            <div className="bg-yellow-50 p-4 rounded-md text-yellow-700 mb-6">
+              {error}
             </div>
-          )}
+            
+            <p className="mb-4">
+              Your payment might have been successful, but we couldn't verify its status. Please check your email for a confirmation, or contact our support team for assistance.
+            </p>
+            
+            {combinedResponse && (
+              <JsonDisplay data={combinedResponse} title="Technical Details" />
+            )}
+          </div>
+          
+          <div className="p-6">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link 
+                href="/" 
+                className="inline-block bg-indigo-600 text-white px-6 py-3 rounded-md text-center hover:bg-indigo-700"
+              >
+                Return to Homepage
+              </Link>
+              <Link 
+                href="/support" 
+                className="inline-block bg-white text-indigo-600 border border-indigo-600 px-6 py-3 rounded-md text-center hover:bg-indigo-50"
+              >
+                Contact Support
+              </Link>
+            </div>
+          </div>
         </div>
+      </div>
+    );
+  }
+  
+  // Define payment reference to display
+  const paymentReference = (paymentDetails?.reference || sessionDetails?.reference || "Unknown") as string;
+  
+  // Determine amount and currency to display
+  let displayAmount = "Unknown";
+  let displayCurrency = "USD"; // Default currency
+  
+  if (paymentDetails?.amount && paymentDetails?.currency) {
+    displayAmount = formatAmount(paymentDetails.amount, paymentDetails.currency);
+    displayCurrency = paymentDetails.currency;
+  } else if (sessionDetails?.amount && sessionDetails?.currency) {
+    displayAmount = formatAmount(sessionDetails.amount, sessionDetails.currency);
+    displayCurrency = sessionDetails.currency;
+  } else if (storedPaymentData?.response && typeof storedPaymentData.response === 'object') {
+    // Try to get amount/currency from stored data
+    const resp = storedPaymentData.response as Record<string, any>;
+    if (resp.amount && resp.currency) {
+      displayAmount = formatAmount(Number(resp.amount), String(resp.currency));
+      displayCurrency = String(resp.currency);
+    }
+  }
+  
+  // Get plan/tier details if available
+  const tierName = (storedPaymentData?.tier?.name || "Subscription") as string;
+  const tierDescription = (storedPaymentData?.tier?.description || "Thank you for your purchase!") as string;
+  
+  return (
+    <div className="max-w-3xl mx-auto">
+      <div className="bg-white shadow-md rounded-lg overflow-hidden">
+        <div className="p-6 bg-green-50 border-b border-green-100">
+          <div className="flex items-center">
+            <div className="flex-shrink-0 bg-green-100 rounded-full p-3">
+              <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h1 className="text-2xl font-bold text-gray-800">Payment Successful!</h1>
+              <p className="text-gray-600">Your payment has been processed successfully</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Payment Details</h2>
+          
+          <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+            <div className="sm:col-span-1">
+              <dt className="text-sm font-medium text-gray-500">Order Reference</dt>
+              <dd className="mt-1 text-sm text-gray-900">{paymentReference}</dd>
+            </div>
+            <div className="sm:col-span-1">
+              <dt className="text-sm font-medium text-gray-500">Amount</dt>
+              <dd className="mt-1 text-sm text-gray-900">{displayAmount}</dd>
+            </div>
+            <div className="sm:col-span-1">
+              <dt className="text-sm font-medium text-gray-500">Date</dt>
+              <dd className="mt-1 text-sm text-gray-900">{new Date().toLocaleDateString()}</dd>
+            </div>
+            <div className="sm:col-span-1">
+              <dt className="text-sm font-medium text-gray-500">Plan</dt>
+              <dd className="mt-1 text-sm text-gray-900">{tierName}</dd>
+            </div>
+          </dl>
+          
+          <div className="mt-6 bg-green-50 p-4 rounded-md">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-green-800">{tierDescription}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">What's Next?</h2>
+          <div className="space-y-4 mb-6">
+            <p className="text-gray-600">
+              We've sent a confirmation email with your receipt and further instructions.
+              Your account has been updated with your new subscription.
+            </p>
+            <p className="text-gray-600">
+              You can now access your dashboard to manage your subscription and explore
+              all the features of your new plan.
+            </p>
+          </div>
+          
+          {combinedResponse && (
+            <JsonDisplay data={combinedResponse} title="Response Data (Developer View)" />
+          )}
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+            <Link 
+              href="/dashboard" 
+              className="inline-block bg-indigo-600 text-white px-6 py-3 rounded-md text-center hover:bg-indigo-700"
+            >
+              Go to Dashboard
+            </Link>
+            <Link 
+              href="/" 
+              className="inline-block bg-white text-indigo-600 border border-indigo-600 px-6 py-3 rounded-md text-center hover:bg-indigo-50"
+            >
+              Return to Homepage
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function SuccessPage() {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+      <div className="flex-grow container mx-auto px-4 py-12">
+        <Suspense fallback={<SuccessLoading />}>
+          <SuccessContent />
+        </Suspense>
       </div>
       <Footer />
     </div>

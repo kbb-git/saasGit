@@ -98,17 +98,25 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json(response.data);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as {
+      message: string;
+      response?: {
+        data: unknown;
+        status: number;
+      };
+    };
+    
     console.error("Payment session error:", {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
+      message: err.message,
+      response: err.response?.data,
+      status: err.response?.status
     });
     
     return NextResponse.json(
       {
         error: "Failed to create payment session",
-        details: error.response?.data || error.message
+        details: err.response?.data || err.message
       },
       { status: 500 }
     );
