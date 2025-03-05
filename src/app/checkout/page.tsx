@@ -162,86 +162,141 @@ function CheckoutContent() {
         setLoading(true);
         setError(null);
 
-        if (!window.CheckoutWebComponents) {
+        if (typeof window.CheckoutWebComponents === 'undefined') {
           // Load Checkout.com Web Components script
-          await loadCheckoutScript();
+          console.log('Loading Checkout.com script...');
+          try {
+            await loadCheckoutScript();
+            console.log('Checkout.com script loaded successfully');
+          } catch (scriptError) {
+            console.error('Error loading Checkout.com script:', scriptError);
+            setError('Unable to load payment system. Please check your internet connection and try again.');
+            setLoading(false);
+            return;
+          }
         }
         
         // Calculate amount in minor units (cents/pence)
         const amount = parseInt(selectedPlan.priceMonthly, 10) * 100;
         
         // Create payment session
-        const sessionResponse = await fetch('/api/payment-sessions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            amount,
-            currency: 'USD',
-            items: [{
-              name: `${selectedPlan.name} Plan`,
-              quantity: 1,
-              unit_price: amount,
-              total_amount: amount,
-              reference: `PLAN-${selectedPlan.id}`
-            }],
-            customer: {
-              email: email,
-              name: '' // Name will be captured by Flow
+        console.log('Creating payment session...');
+        let sessionResponse;
+        try {
+          sessionResponse = await fetch('/api/payment-sessions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
             },
-            plan: selectedPlan.id
-          })
-        });
-
-        if (!sessionResponse.ok) {
-          throw new Error('Failed to create payment session');
+            body: JSON.stringify({
+              amount,
+              currency: 'USD',
+              items: [{
+                name: `${selectedPlan.name} Plan`,
+                quantity: 1,
+                unit_price: amount,
+                total_amount: amount,
+                reference: `PLAN-${selectedPlan.id}`
+              }],
+              customer: {
+                email: email,
+                name: '' // Name will be captured by Flow
+              },
+              plan: selectedPlan.id
+            })
+          });
+        } catch (fetchError) {
+          console.error('Network error creating payment session:', fetchError);
+          setError('Network error. Please check your internet connection and try again.');
+          setLoading(false);
+          return;
         }
 
-        const paymentSession = await sessionResponse.json();
+        if (!sessionResponse.ok) {
+          const errorText = await sessionResponse.text().catch(() => 'Unknown error');
+          console.error('Failed to create payment session:', sessionResponse.status, errorText);
+          setError(`Payment setup failed (${sessionResponse.status}). Please try again later.`);
+          setLoading(false);
+          return;
+        }
+
+        let paymentSession;
+        try {
+          paymentSession = await sessionResponse.json();
+        } catch (jsonError) {
+          console.error('Error parsing payment session response:', jsonError);
+          setError('Invalid response from payment service. Please try again.');
+          setLoading(false);
+          return;
+        }
         
         // Initialize Checkout.com Web Components with enhanced styling
+        console.log('Initializing Checkout.com Web Components...');
+        if (typeof window.CheckoutWebComponents === 'undefined') {
+          console.error('CheckoutWebComponents not available even after loading script');
+          setError('Payment system failed to initialize. Please refresh the page and try again.');
+          setLoading(false);
+          return;
+        }
+
         const CheckoutWebComponentsInstance = window.CheckoutWebComponents;
         
-        checkoutInstance = await CheckoutWebComponentsInstance({
-          publicKey: CHECKOUT_PUBLIC_KEY,
-          environment: ENVIRONMENT,
-          paymentSession,
-          locale: "en-US",
-          appearance: flowAppearance,
-          componentOptions: flowComponentOptions,
-          onReady: () => {
-            console.log('Payment components ready');
-            setLoading(false);
-          },
-          onPaymentCompleted: (component: unknown, paymentResponse: PaymentResponseDataType) => {
-            console.log('Payment completed:', paymentResponse);
-            
-            // Store payment response in localStorage
-            const paymentData: Record<string, unknown> = {
-              response: paymentResponse,
-              sessionId: paymentSession.id,
-              timestamp: new Date().toISOString(),
-              tier: selectedPlan
-            };
-            
-            localStorage.setItem('lastPaymentData', JSON.stringify(paymentData));
-            
-            // Let Checkout.com handle the redirect with its own parameters
-            // It will automatically add cko-payment-session-id, cko-session-id, and cko-payment-id
-            router.push(`/checkout/success`);
-          },
-          onError: (_component: unknown, error: {message?: string}) => {
-            console.error('Payment error:', error);
-            setError(error.message || 'Payment failed. Please try again.');
-            setLoading(false);
-          }
-        });
+        try {
+          checkoutInstance = await CheckoutWebComponentsInstance({
+            publicKey: CHECKOUT_PUBLIC_KEY,
+            environment: ENVIRONMENT,
+            paymentSession,
+            locale: "en-US",
+            appearance: flowAppearance,
+            componentOptions: flowComponentOptions,
+            onReady: () => {
+              console.log('Payment components ready');
+              setLoading(false);
+            },
+            onPaymentCompleted: (component: unknown, paymentResponse: PaymentResponseDataType) => {
+              console.log('Payment completed:', paymentResponse);
+              
+              // Store payment response in localStorage
+              const paymentData: Record<string, unknown> = {
+                response: paymentResponse,
+                sessionId: paymentSession.id,
+                timestamp: new Date().toISOString(),
+                tier: selectedPlan
+              };
+              
+              localStorage.setItem('lastPaymentData', JSON.stringify(paymentData));
+              
+              // Let Checkout.com handle the redirect with its own parameters
+              // It will automatically add cko-payment-session-id, cko-session-id, and cko-payment-id
+              router.push(`/checkout/success`);
+            },
+            onError: (_component: unknown, error: {message?: string}) => {
+              console.error('Payment error:', error);
+              setError(error.message || 'Payment failed. Please try again.');
+              setLoading(false);
+            }
+          });
+        } catch (ckoError) {
+          console.error('Error initializing Checkout.com components:', ckoError);
+          setError('Failed to initialize payment form. Please refresh and try again.');
+          setLoading(false);
+          return;
+        }
 
         // Create and mount the Flow component
         if (checkoutInstance && flowContainerRef.current) {
-          const flow = checkoutInstance.create('flow');
-          flow.mount(flowContainerRef.current);
+          try {
+            const flow = checkoutInstance.create('flow');
+            flow.mount(flowContainerRef.current);
+          } catch (mountError) {
+            console.error('Error mounting Flow component:', mountError);
+            setError('Failed to display payment form. Please refresh and try again.');
+            setLoading(false);
+          }
+        } else {
+          console.error('Cannot mount Flow: checkoutInstance or container is not available');
+          setError('Payment initialization failed. Please refresh and try again.');
+          setLoading(false);
         }
         
       } catch (err: unknown) {
@@ -343,6 +398,21 @@ function CheckoutContent() {
                       <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
                         <strong className="font-bold">Error: </strong>
                         <span className="block sm:inline">{error}</span>
+                        <p className="mt-2 text-sm">
+                          If this error persists, please try:
+                          <ul className="list-disc list-inside mt-1">
+                            <li>Refreshing the page</li>
+                            <li>Checking your internet connection</li>
+                            <li>Trying a different browser</li>
+                            <li>Contacting support if the issue continues</li>
+                          </ul>
+                        </p>
+                        <button 
+                          onClick={() => window.location.reload()} 
+                          className="mt-2 inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                        >
+                          Refresh Page
+                        </button>
                       </div>
                     )}
                   </div>
@@ -368,12 +438,49 @@ function CheckoutContent() {
 // Helper function to load Checkout.com script
 function loadCheckoutScript(): Promise<void> {
   return new Promise((resolve, reject) => {
+    // First check if the script is already loaded
+    if (typeof window.CheckoutWebComponents !== 'undefined') {
+      console.log('Checkout.com script already loaded');
+      return resolve();
+    }
+    
+    // Try to remove any existing failed script tags
+    const existingScripts = document.querySelectorAll('script[src*="checkout.com"]');
+    existingScripts.forEach(script => script.remove());
+    
+    // Create and add the script tag
     const script = document.createElement('script');
     script.src = 'https://cdn.checkout.com/web-components/v2.0/flow/web-components-flow.js';
     script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load Checkout.com script'));
-    document.head.appendChild(script);
+    script.crossOrigin = 'anonymous'; // Add CORS support
+    
+    let retries = 0;
+    const maxRetries = 3;
+    
+    const loadWithRetry = () => {
+      script.onload = () => {
+        console.log('Checkout.com script loaded successfully');
+        resolve();
+      };
+      
+      script.onerror = () => {
+        retries++;
+        if (retries <= maxRetries) {
+          console.log(`Failed to load Checkout.com script. Retrying (${retries}/${maxRetries})...`);
+          // Remove the failed script
+          script.remove();
+          // Wait briefly before retrying
+          setTimeout(loadWithRetry, 1000);
+        } else {
+          console.error('Failed to load Checkout.com script after multiple attempts');
+          reject(new Error('Failed to load Checkout.com script after multiple attempts'));
+        }
+      };
+      
+      document.head.appendChild(script);
+    };
+    
+    loadWithRetry();
   });
 }
 
